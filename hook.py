@@ -17,7 +17,7 @@ def log_event(event, decision, reason):
     """)
     c.execute("INSERT INTO events VALUES (?, ?, ?, ?, ?)", (
         time.time(),
-        event.get("tool"),
+        event.get("tool_name", ""),
         decision,
         reason,
         json.dumps(event)
@@ -26,9 +26,9 @@ def log_event(event, decision, reason):
     conn.close()
 
 def match_rule(rule, event):
-    tool = event.get("tool", "")
-    cmd = (event.get("command") or "").lower()
-    path = (event.get("path") or "").lower()
+    tool = event.get("tool_name", "")
+    cmd = (event.get("tool_input", {}).get("command", "") or "").lower()
+    path = (event.get("tool_input", {}).get("path", "") or "").lower()
 
     if "tool" in rule["match"] and rule["match"]["tool"] != tool:
         return False

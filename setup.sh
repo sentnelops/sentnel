@@ -57,7 +57,17 @@ with open(config_path, "r") as f:
     config = json.load(f)
 
 config.setdefault("hooks", {})
-config["hooks"]["PreToolUse"] = "python3 ~/.sentnel/hook.py"
+config["hooks"]["PreToolUse"] = [
+    {
+        "matcher": "",
+        "hooks": [
+            {
+                "type": "command",
+                "command": "python3 ~/.sentnel/hook.py"
+            }
+        ]
+    }
+]
 
 with open(config_path, "w") as f:
     json.dump(config, f, indent=2)

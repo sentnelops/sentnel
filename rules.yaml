@@ -1,24 +1,24 @@
 rules:
   - id: block_delete
     match:
-      tool: bash
+      tool: Bash
       pattern: "rm -rf"
     action: deny
 
   - id: block_sql_drop
     match:
-      tool: bash
+      tool: Bash
       pattern: "drop table"
     action: deny
 
   - id: block_sensitive_files
     match:
-      tool: read_file
+      tool: Read
       path: [".env", "id_rsa", ".pem"]
     action: deny
 
   - id: network_egress
     match:
-      tool: bash
+      tool: Bash
       pattern: "curl"
-    action: ask
+    action: deny
