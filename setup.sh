@@ -2,7 +2,7 @@
 
 set -e
 
-INSTALL_DIR="$HOME/sentnel"
+INSTALL_DIR="$HOME/.sentnel"
 
 INSTALLER_VERSION="2.0.2"
 echo "Installing Sentnel v$INSTALLER_VERSION..."
@@ -48,7 +48,7 @@ with open(config_path, "r") as f:
     config = json.load(f)
 
 config.setdefault("hooks", {})
-config["hooks"]["PreToolUse"] = "python3 ~/sentnel/hook.py"
+config["hooks"]["PreToolUse"] = "python3 ~/.sentnel/hook.py"
 
 with open(config_path, "w") as f:
     json.dump(config, f, indent=2)

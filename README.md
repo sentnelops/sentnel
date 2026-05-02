@@ -39,10 +39,7 @@ $ npm install express
 ## 🚀 1-Minute Install
 
 ```bash
-git clone https://github.com/sentnelops/sentnel.git
-cd sentnel
-chmod +x installer.sh
-./installer.sh
+curl -sSL https://raw.githubusercontent.com/sentnelops/sentnel/main/setup.sh | bash
 ```
 
 That’s it.
@@ -118,7 +115,7 @@ rules:
 Every action is logged locally:
 
 ```bash
-sqlite3 audit.db "SELECT * FROM events;"
+sqlite3 ~/.sentnel/audit.db "SELECT * FROM events;"
 ```
 
 Example:
