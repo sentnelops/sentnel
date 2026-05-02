@@ -51,6 +51,7 @@ def evaluate(event):
     return "allow", None
 
 def main():
+    print("🔥 SENTNEL HOOK TRIGGERED", file=sys.stderr)
     try:
         event = json.load(sys.stdin)
     except:
