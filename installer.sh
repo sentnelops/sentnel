@@ -4,7 +4,7 @@ set -e
 
 INSTALL_DIR="$HOME/sentnel"
 
-INSTALLER_VERSION="2.0.1"
+INSTALLER_VERSION="2.0.2"
 echo "Installing Sentnel v$INSTALLER_VERSION..."
 
 mkdir -p $INSTALL_DIR
@@ -24,7 +24,8 @@ done
 
 # Install dependencies
 echo "Installing dependencies..."
-pip3 install pyyaml --quiet
+# Use --break-system-packages for macOS/PEP 668 compliance
+pip3 install pyyaml --quiet --break-system-packages 2>/dev/null || pip3 install pyyaml --quiet
 
 # Create DB file
 touch $INSTALL_DIR/audit.db
