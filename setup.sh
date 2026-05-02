@@ -3,9 +3,18 @@
 set -e
 
 INSTALL_DIR="$HOME/.sentnel"
+OLD_DIR="$HOME/sentnel"
 
-INSTALLER_VERSION="2.0.2"
+INSTALLER_VERSION="2.0.3"
 echo "Installing Sentnel v$INSTALLER_VERSION..."
+
+# Migrate from old directory if it exists
+if [ -d "$OLD_DIR" ]; then
+  echo "Migrating from $OLD_DIR to $INSTALL_DIR..."
+  mkdir -p "$INSTALL_DIR"
+  mv "$OLD_DIR"/* "$INSTALL_DIR/" 2>/dev/null || true
+  rmdir "$OLD_DIR" 2>/dev/null || true
+fi
 
 mkdir -p $INSTALL_DIR
 
