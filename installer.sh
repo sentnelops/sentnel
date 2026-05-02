@@ -7,7 +7,23 @@ INSTALL_DIR="$HOME/sentnel"
 echo "Installing Sentnel..."
 
 mkdir -p $INSTALL_DIR
-cp hook.py rules.yaml $INSTALL_DIR
+
+# Files to install
+FILES=("hook.py" "rules.yaml" "logger.py")
+
+for FILE in "${FILES[@]}"; do
+  if [ -f "$FILE" ]; then
+    echo "Found local $FILE, copying..."
+    cp "$FILE" "$INSTALL_DIR/"
+  else
+    echo "Downloading $FILE from GitHub..."
+    curl -sSL "https://raw.githubusercontent.com/sentnelops/sentnel/main/$FILE" -o "$INSTALL_DIR/$FILE"
+  fi
+done
+
+# Install dependencies
+echo "Installing dependencies..."
+pip3 install pyyaml --quiet
 
 # Create DB file
 touch $INSTALL_DIR/audit.db
