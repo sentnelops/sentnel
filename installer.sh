@@ -4,7 +4,8 @@ set -e
 
 INSTALL_DIR="$HOME/sentnel"
 
-echo "Installing Sentnel..."
+INSTALLER_VERSION="2.0.1"
+echo "Installing Sentnel v$INSTALLER_VERSION..."
 
 mkdir -p $INSTALL_DIR
 
