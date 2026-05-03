@@ -5,7 +5,7 @@ set -e
 INSTALL_DIR="$HOME/.sentnel"
 OLD_DIR="$HOME/sentnel"
 
-INSTALLER_VERSION="2.0.3"
+INSTALLER_VERSION="2.0.5"
 echo "Installing Sentnel v$INSTALLER_VERSION..."
 
 # Migrate from old directory if it exists
