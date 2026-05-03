@@ -1,19 +1,27 @@
 rules:
-  - id: block_destructive_bash
+  # ── Destructive file operations ──────────────────────────
+  - id: block_rm
     match:
       tool: Bash
       patterns_any:
         - "rm "
         - "rmdir"
         - "shutil.rmtree"
+        - "shutil.rmdir"
         - "os.remove"
         - "os.unlink"
+        - "os.rmdir"
+        - "pathlib.Path.unlink"
+        - "pathlib.Path.rmdir"
         - "find . -delete"
+        - "find / -delete"
+        - "-exec rm"
         - "git clean"
-        - "unlink"
-        - "truncate"
+        - "trash"
+        - "mv /dev/null"
     action: deny
 
+  # ── SQL destruction ───────────────────────────────────────
   - id: block_sql_drop
     match:
       tool: Bash
@@ -25,21 +33,63 @@ rules:
         - "delete from"
     action: deny
 
-  - id: block_sensitive_files
+  # ── Sensitive file reads ──────────────────────────────────
+  - id: block_sensitive_reads
     match:
       tool: Read
-      path: [".env", "id_rsa", "id_ed25519", ".pem", ".aws/credentials", ".kube/config"]
+      path:
+        - ".env"
+        - "id_rsa"
+        - "id_ed25519"
+        - "id_ecdsa"
+        - ".pem"
+        - ".key"
+        - ".p12"
+        - ".aws/credentials"
+        - ".aws/config"
+        - ".kube/config"
+        - ".gnupg"
+        - ".docker/config.json"
+        - "logins.json"
+        - "Login Data"
     action: deny
 
+  # ── MCP config tampering ──────────────────────────────────
+  - id: block_mcp_config_write
+    match:
+      tool: Write
+      path:
+        - ".mcp.json"
+        - ".cursor/mcp.json"
+        - ".claude/settings.json"
+    action: deny
+
+  # ── Network exfil ─────────────────────────────────────────
   - id: block_network_exfil
     match:
       tool: Bash
       patterns_any:
-        - "curl"
-        - "wget"
+        - "curl "
+        - "wget "
         - "requests.get"
         - "requests.post"
-        - "urllib"
+        - "urllib.request"
         - "http.client"
         - "socket.connect"
+        - "httpx"
+        - "aiohttp"
+        - "fetch("
+    action: deny
+
+  # ── Reverse shell / RCE indicators ───────────────────────
+  - id: block_revshell
+    match:
+      tool: Bash
+      patterns_any:
+        - "bash -i"
+        - "/dev/tcp/"
+        - "nc -e"
+        - "ncat -e"
+        - "LD_PRELOAD"
+        - "DYLD_INSERT"
     action: deny
