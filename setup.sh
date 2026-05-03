@@ -21,6 +21,18 @@ mkdir -p $INSTALL_DIR
 # Files to install
 FILES=("hook.py" "rules.yaml" "logger.py")
 
+# Install CLAUDE.md to ~/.claude/ for intent-layer guardrails
+CLAUDE_MD_SRC="CLAUDE.md"
+CLAUDE_MD_DEST="$HOME/.claude/CLAUDE.md"
+mkdir -p "$HOME/.claude"
+if [ -f "$CLAUDE_MD_SRC" ]; then
+  echo "Installing CLAUDE.md to $CLAUDE_MD_DEST..."
+  cp "$CLAUDE_MD_SRC" "$CLAUDE_MD_DEST"
+else
+  echo "Downloading CLAUDE.md from GitHub..."
+  curl -sSL "https://raw.githubusercontent.com/sentnelops/sentnel/main/CLAUDE.md" -o "$CLAUDE_MD_DEST"
+fi
+
 for FILE in "${FILES[@]}"; do
   if [ -f "$FILE" ]; then
     echo "Found local $FILE, copying..."
