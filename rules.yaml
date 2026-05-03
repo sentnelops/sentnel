@@ -1,24 +1,45 @@
 rules:
-  - id: block_delete
+  - id: block_destructive_bash
     match:
       tool: Bash
-      pattern: "rm -rf"
+      patterns_any:
+        - "rm "
+        - "rmdir"
+        - "shutil.rmtree"
+        - "os.remove"
+        - "os.unlink"
+        - "find . -delete"
+        - "git clean"
+        - "unlink"
+        - "truncate"
     action: deny
 
   - id: block_sql_drop
     match:
       tool: Bash
-      pattern: "drop table"
+      patterns_any:
+        - "drop table"
+        - "drop database"
+        - "drop schema"
+        - "truncate table"
+        - "delete from"
     action: deny
 
   - id: block_sensitive_files
     match:
       tool: Read
-      path: [".env", "id_rsa", ".pem"]
+      path: [".env", "id_rsa", "id_ed25519", ".pem", ".aws/credentials", ".kube/config"]
     action: deny
 
-  - id: network_egress
+  - id: block_network_exfil
     match:
       tool: Bash
-      pattern: "curl"
+      patterns_any:
+        - "curl"
+        - "wget"
+        - "requests.get"
+        - "requests.post"
+        - "urllib"
+        - "http.client"
+        - "socket.connect"
     action: deny

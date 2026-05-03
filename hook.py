@@ -27,18 +27,26 @@ def log_event(event, decision, reason):
 
 def match_rule(rule, event):
     tool = event.get("tool_name", "")
-    cmd = (event.get("tool_input", {}).get("command", "") or "").lower()
-    path = (event.get("tool_input", {}).get("path", "") or "").lower()
+    tool_input = event.get("tool_input") or {}
+    cmd  = (tool_input.get("command") or "").lower()
+    path = (tool_input.get("path") or "").lower()
 
     if "tool" in rule["match"] and rule["match"]["tool"] != tool:
         return False
 
-    if "pattern" in rule["match"] and rule["match"]["pattern"] in cmd:
+    # Check for patterns_any (list of strings)
+    if "patterns_any" in rule["match"]:
+        for p in rule["match"]["patterns_any"]:
+            if p.lower() in cmd:
+                return True
+
+    # Check for legacy single pattern
+    if "pattern" in rule["match"] and rule["match"]["pattern"].lower() in cmd:
         return True
 
     if "path" in rule["match"]:
         for p in rule["match"]["path"]:
-            if p in path:
+            if p.lower() in path:
                 return True
 
     return False
