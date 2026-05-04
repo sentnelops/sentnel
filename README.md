@@ -36,10 +36,15 @@ Sentnel: ✓ Allowed
 
 ---
 
-## 🚀 Install (Local Sidecar)
+## 🚀 Install
 
-Sentnel runs **directly from the repo** — no global install, no file copying.
+### One-liner (Recommended)
+```bash
+curl -sSL https://raw.githubusercontent.com/sentnelops/sentnel/main/setup.sh | bash
+```
 
+### Manual Setup (Local Sidecar)
+If you prefer to run Sentnel directly from a specific directory:
 ```bash
 git clone https://github.com/sentnelops/sentnel.git
 cd sentnel
