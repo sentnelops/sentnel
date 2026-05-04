@@ -1,88 +1,127 @@
 #!/bin/bash
-
 set -e
 
-INSTALL_DIR="$HOME/.sentnel"
-OLD_DIR="$HOME/sentnel"
-
-INSTALLER_VERSION="2.0.5"
-echo "Installing Sentnel v$INSTALLER_VERSION..."
-
-# Migrate from old directory if it exists
-if [ -d "$OLD_DIR" ]; then
-  echo "Migrating from $OLD_DIR to $INSTALL_DIR..."
-  mkdir -p "$INSTALL_DIR"
-  mv "$OLD_DIR"/* "$INSTALL_DIR/" 2>/dev/null || true
-  rmdir "$OLD_DIR" 2>/dev/null || true
-fi
-
-mkdir -p $INSTALL_DIR
-
-# Files to install
-FILES=("hook.py" "rules.yaml" "logger.py")
-
-# Install CLAUDE.md to ~/.claude/ for intent-layer guardrails
-CLAUDE_MD_SRC="CLAUDE.md"
-CLAUDE_MD_DEST="$HOME/.claude/CLAUDE.md"
-mkdir -p "$HOME/.claude"
-if [ -f "$CLAUDE_MD_SRC" ]; then
-  echo "Installing CLAUDE.md to $CLAUDE_MD_DEST..."
-  cp "$CLAUDE_MD_SRC" "$CLAUDE_MD_DEST"
-else
-  echo "Downloading CLAUDE.md from GitHub..."
-  curl -sSL "https://raw.githubusercontent.com/sentnelops/sentnel/main/CLAUDE.md" -o "$CLAUDE_MD_DEST"
-fi
-
-for FILE in "${FILES[@]}"; do
-  if [ -f "$FILE" ]; then
-    echo "Found local $FILE, copying..."
-    cp "$FILE" "$INSTALL_DIR/"
-  else
-    echo "Downloading $FILE from GitHub..."
-    curl -sSL "https://raw.githubusercontent.com/sentnelops/sentnel/main/$FILE" -o "$INSTALL_DIR/$FILE"
-  fi
-done
-
-# Install dependencies
-echo "Installing dependencies..."
-# Use --break-system-packages for macOS/PEP 668 compliance
-pip3 install pyyaml --quiet --break-system-packages 2>/dev/null || pip3 install pyyaml --quiet
-
-# Create DB file
-touch $INSTALL_DIR/audit.db
-
-# Update Claude config
+VERSION="1.0.0"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_CONFIG="$HOME/.claude/settings.json"
+HOOK_CMD="python3 $REPO_DIR/hook.py"
 
-if [ ! -f "$CLAUDE_CONFIG" ]; then
-  echo '{}' > $CLAUDE_CONFIG
+GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; NC='\033[0m'
+ok()   { echo -e "${GREEN}✓${NC} $1"; }
+fail() { echo -e "${RED}✗${NC} $1"; exit 1; }
+warn() { echo -e "${YELLOW}⚠${NC} $1"; }
+
+echo ""
+echo "  🛡  Sentnel v$VERSION — Local Sidecar"
+echo "  ─────────────────────────────────────"
+echo "  Repo: $REPO_DIR"
+echo ""
+
+# ── Step 1: Verify required files exist in repo ───────────
+for FILE in hook.py rules.yaml; do
+  [ -f "$REPO_DIR/$FILE" ] || fail "Missing $FILE in repo root"
+done
+ok "Repo files verified"
+
+# ── Step 2: Python dependency ─────────────────────────────
+pip3 install pyyaml --quiet --break-system-packages 2>/dev/null \
+  || pip3 install pyyaml --quiet \
+  || fail "pip3 install pyyaml failed — install Python 3 and pip first"
+ok "Dependencies ready"
+
+# ── Step 3: Init local audit DB + .gitignore ──────────────
+touch "$REPO_DIR/audit.db"
+if ! grep -q "^audit\.db$" "$REPO_DIR/.gitignore" 2>/dev/null; then
+  echo "audit.db" >> "$REPO_DIR/.gitignore"
 fi
+ok "Audit DB: $REPO_DIR/audit.db"
 
-# Inject hook (simple version)
-python3 - <<EOF
-import json
-import os
+# ── Step 4: Register hook in ~/.claude/settings.json ──────
+mkdir -p "$HOME/.claude"
 
-config_path = os.path.expanduser("~/.claude/settings.json")
+python3 << PYEOF
+import json, os, sys
 
-with open(config_path, "r") as f:
-    config = json.load(f)
+config_path  = os.path.expanduser("~/.claude/settings.json")
+hook_command = "$HOOK_CMD"
+hook_entry   = {"matcher": "", "hooks": [{"type": "command", "command": hook_command}]}
+
+if os.path.exists(config_path):
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+    except json.JSONDecodeError:
+        print("  ⚠ Corrupt settings.json — backing up")
+        os.rename(config_path, config_path + ".bak")
+        config = {}
+else:
+    config = {}
 
 config.setdefault("hooks", {})
-config["hooks"]["PreToolUse"] = [
-    {
-        "matcher": "",
-        "hooks": [
-            {
-                "type": "command",
-                "command": "python3 ~/.sentnel/hook.py"
-            }
-        ]
-    }
+config["hooks"].setdefault("PreToolUse", [])
+
+existing = [
+    h.get("command", "")
+    for e in config["hooks"]["PreToolUse"] if isinstance(e, dict)
+    for h in e.get("hooks", [])
 ]
+
+if hook_command in existing:
+    print("  Already registered — skipping (idempotent)")
+    sys.exit(0)
+
+# Remove any stale sentnel hook.py entries pointing elsewhere
+config["hooks"]["PreToolUse"] = [
+    e for e in config["hooks"]["PreToolUse"]
+    if not any(
+        "hook.py" in h.get("command", "")
+        for h in (e.get("hooks", []) if isinstance(e, dict) else [])
+    )
+]
+
+config["hooks"]["PreToolUse"].append(hook_entry)
 
 with open(config_path, "w") as f:
     json.dump(config, f, indent=2)
-EOF
 
-echo "✅ Installed successfully!"
+print(f"  Registered: {hook_command}")
+PYEOF
+
+ok "Hook registered in ~/.claude/settings.json"
+
+# ── Step 5: Smoke test ────────────────────────────────────
+TEST='{"tool_name":"Bash","tool_input":{"command":"rm -rf /test"}}'
+echo "$TEST" | python3 "$REPO_DIR/hook.py" 2>/dev/null
+EXIT_CODE=$?
+
+if   [ $EXIT_CODE -eq 2 ]; then ok "Smoke test passed — rm -rf blocked"
+elif [ $EXIT_CODE -eq 0 ]; then warn "Hook ran but did not block — check rules.yaml"
+else fail "Hook exited $EXIT_CODE — check hook.py"
+fi
+
+# ── Step 6: Validate settings.json ───────────────────────
+python3 -c "
+import json, os, sys
+with open(os.path.expanduser('~/.claude/settings.json')) as f:
+    c = json.load(f)
+hooks = c.get('hooks', {}).get('PreToolUse', [])
+assert isinstance(hooks, list) and len(hooks) > 0, 'No PreToolUse hooks found'
+print('  PreToolUse hooks:', len(hooks))
+for e in hooks:
+    for h in e.get('hooks', []):
+        print('   ->', h.get('command'))
+" || fail "settings.json invalid"
+ok "settings.json validated"
+
+# ── Done ──────────────────────────────────────────────────
+echo ""
+echo "  ✅ Sentnel sidecar active!"
+echo ""
+echo "  Hook  → $REPO_DIR/hook.py"
+echo "  Rules → $REPO_DIR/rules.yaml"
+echo "  Audit → $REPO_DIR/audit.db"
+echo "  Config→ $CLAUDE_CONFIG"
+echo ""
+echo "  Edit rules.yaml to customise — changes apply on next Claude tool call."
+echo "  Uninstall: bash $REPO_DIR/uninstall.sh"
+echo ""
